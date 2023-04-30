@@ -12,6 +12,9 @@
 #include <bitset>
 #include <type_traits>
 
+#pragma warning( push )
+#pragma warning( disable : 4146) // we use this as a bit trick, so no warning pz
+
 namespace half
 {
     // credit goes to David Lin <https://gist.github.com/davll/9679518>
@@ -51,14 +54,16 @@ namespace half
 
         constexpr inline std::uint32_t _uint32_cntlz( std::uint32_t x ) noexcept
         {
-            if constexpr( using_gnu_c )
+#ifdef __GNUC__
+            //if constexpr( using_gnu_c )
             {
                 std::uint32_t is_x_nez_msb = ( -x );
                 std::uint32_t nlz = __builtin_clz( x );
                 std::uint32_t result = _uint32_sels( is_x_nez_msb, nlz, 0x00000020 );
                 return ( result );
             }
-            else
+#else
+            //else
             {
                 const std::uint32_t x0 = ( x >> 1 );
                 const std::uint32_t x1 = ( x | x0 );
@@ -88,18 +93,21 @@ namespace half
                 const std::uint32_t x19 = ( x18 & 0x0000003f );
                 return ( x19 );
             }
+#endif // NOT __GNUC__
         }
 
 
         constexpr inline std::uint16_t _uint16_cntlz( std::uint16_t x ) noexcept
         {
-            if constexpr( using_gnu_c )
+#ifdef __GNUC__
+            #//if constexpr( using_gnu_c )
             {
                 std::uint16_t nlz32 = ( std::uint16_t )_uint32_cntlz( ( std::uint32_t )x );
                 std::uint32_t nlz = ( nlz32 - 16 );
                 return ( nlz );
             }
-            else
+#else
+            //else
             {
                 const std::uint16_t x0 = ( x >> 1 );
                 const std::uint16_t x1 = ( x | x0 );
@@ -121,6 +129,7 @@ namespace half
                 const std::uint16_t x11 = ( ( xF + x10 ) & 0x001f );
                 return ( x11 );
             }
+#endif // NOT __GNUC__
         }
 
     }//namespace half_private
@@ -402,7 +411,7 @@ namespace half
         const std::uint32_t c_m_norm_hidden_bit = ( c_m_norm_radix_corrected & m_hidden_bit );
         const std::uint32_t is_c_m_norm_no_hidden_msb = ( c_m_norm_hidden_bit - 1 );
         const std::uint32_t c_m_norm_lo = ( c_m_norm_radix_corrected >> h_m_bit_half_count );
-        const std::uint32_t c_m_norm_lo_nlz = half_private::_uint16_cntlz( c_m_norm_lo );
+        const std::uint32_t c_m_norm_lo_nlz = half_private::_uint16_cntlz( static_cast<uint16_t>(c_m_norm_lo) );
         const std::uint32_t is_c_m_hidden_nunderflow_msb = ( c_m_norm_lo_nlz - c_e_norm_radix_corrected );
         const std::uint32_t is_c_m_hidden_underflow_msb = ( ~is_c_m_hidden_nunderflow_msb );
         const std::uint32_t is_c_m_hidden_underflow = ( ( ( std::int32_t )is_c_m_hidden_underflow_msb ) >> 31 );
@@ -493,9 +502,10 @@ namespace numeric
             } ieee_;
         };
 
-        template< std::integral T >
+        template< typename T >
         constexpr inline float16 to_float16( T val ) noexcept
         {
+            static_assert(std::is_integral<T>::value, "Integral required.");
             return float16{ static_cast<std::uint16_t>( val ) };
         }
 
@@ -530,16 +540,16 @@ namespace numeric
 
         inline constexpr float16 float32_to_float16( float input ) noexcept
         {
-            float32 f32;
+            float32 f32 = {};
             f32.float_ = input;
-            float16 f16;
+            float16 f16 = {};
             f16.bits_ = half::float_to_half( f32.bits_ );
             return f16;
         }
 
         inline constexpr float32 float16_to_float32( std::uint16_t input ) noexcept
         {
-            float32 f32;
+            float32 f32{};
             f32.bits_ = half::half_to_float( input );
             return f32;
         }
@@ -554,6 +564,8 @@ namespace numeric
         constexpr inline float16_t( float16_t const& ) noexcept = default;
         constexpr inline float16_t( float16_t&& ) noexcept = default;
         constexpr inline float16_t( float other ) noexcept : data_ { float16_t_private::float32_to_float16( other ) } { }
+        constexpr inline float16_t( double other ) noexcept : data_ { float16_t_private::float32_to_float16(static_cast<float>(other)) } { }
+        constexpr inline float16_t( int other ) noexcept : data_{ float16_t_private::float32_to_float16(static_cast<float>(other)) } { }
         constexpr inline float16_t( std::uint16_t bits ) noexcept : data_{ bits } { }
 
         constexpr inline float16_t& operator = ( float16_t const& ) noexcept = default;
@@ -835,7 +847,7 @@ namespace numeric
     constexpr inline auto fmax = float16_t_private::make_binary_function( []( float f1, float f2 ) { return std::fmax( f1, f2 ); } );
     constexpr inline auto fmin = float16_t_private::make_binary_function( []( float f1, float f2 ) { return std::fmax( f1, f2 ); } );
     constexpr inline auto fdim = float16_t_private::make_binary_function( []( float f1, float f2 ) { return std::fdim( f1, f2 ); } );
-    constexpr inline auto lerp = float16_t_private::make_trinary_function( []( float f1, float f2, float f3 ) { return std::lerp( f1, f2, f3 ); } );
+    constexpr inline auto lerp = float16_t_private::make_trinary_function( []( float f1, float f2, float f3 ) { return f1 + f3 * (f2 - f1); } );
     constexpr inline auto exp = float16_t_private::make_unary_function( [](float f){ return std::exp(f); } );
     constexpr inline auto exp2 = float16_t_private::make_unary_function( [](float f){ return std::exp2(f); } );
     constexpr inline auto expm1 = float16_t_private::make_unary_function( [](float f){ return std::expm1(f); } );
@@ -993,3 +1005,4 @@ namespace std
 
 #endif
 
+#pragma warning( pop )

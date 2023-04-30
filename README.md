@@ -14,9 +14,9 @@
 using numeric::float16_t;
 ```
 
-then compile using a C++20 compatible compiler with command line like:
+then compile using a C++17 compatible compiler with command line like:
 ```
-clang++ -c -std=c++2a -Wall -Wextra -ferror-limit=1 -ftemplate-backtrace-limit=0 -funsafe-math-optimizations  -Ofast -flto -pipe -march=native -DDEBUG -o ./obj/test_test.o tests/test.cc
+clang++ -c -std=c++17 -Wall -Wextra -ferror-limit=1 -ftemplate-backtrace-limit=0 -funsafe-math-optimizations  -Ofast -flto -pipe -march=native -DDEBUG -o ./obj/test_test.o tests/test.cc
 ```
 
 if you do not want to dump binary information, you can ommit the `-DDEBUG` option.
