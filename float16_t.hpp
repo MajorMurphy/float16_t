@@ -12,8 +12,10 @@
 #include <bitset>
 #include <type_traits>
 
+#ifdef _MSC_VER
 #pragma warning( push )
 #pragma warning( disable : 4146) // we use this as a bit trick, so no warning pz
+#endif
 
 namespace half
 {
@@ -560,7 +562,11 @@ namespace numeric
     {
         float16_t_private::float16 data_;
 
+#if __cpp_constexpr >= 201907L
         constexpr inline float16_t() noexcept = default;
+#else
+        inline float16_t() noexcept = default;
+#endif
         constexpr inline float16_t( float16_t const& ) noexcept = default;
         constexpr inline float16_t( float16_t&& ) noexcept = default;
         constexpr inline float16_t( float other ) noexcept : data_ { float16_t_private::float32_to_float16( other ) } { }
@@ -938,6 +944,7 @@ namespace numeric
     // assoc_laguerre, asso_legendre, hermite, legendre, laguerre, sph_bessel, sph_legendre, sph_neumann
     //
 
+#if __STDCPP_MATH_SPEC_FUNCS__ >= 201003L
     constexpr inline auto beta = float16_t_private::make_binary_function( [](float f1, float f2){ return std::beta(f1, f2); } );
     constexpr inline auto comp_ellint_1 = float16_t_private::make_unary_function( [](float f){ return std::comp_ellint_1(f); } );
     constexpr inline auto comp_ellint_2 = float16_t_private::make_unary_function( [](float f){ return std::comp_ellint_2(f); } );
@@ -951,6 +958,7 @@ namespace numeric
     constexpr inline auto ellint_3 = float16_t_private::make_trinary_function( [](float f1, float f2, float f3){ return std::ellint_3(f1, f2, f3); } );
     constexpr inline auto expint = float16_t_private::make_unary_function( [](float f){ return std::expint(f); } );
     constexpr inline auto riemann_zeta = float16_t_private::make_unary_function( [](float f){ return std::riemann_zeta(f); } );
+#endif
 
 }//namespace numeric
 
@@ -1005,4 +1013,6 @@ namespace std
 
 #endif
 
+#ifdef _MSC_VER
 #pragma warning( pop )
+#endif
